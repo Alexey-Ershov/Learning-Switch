@@ -1,0 +1,209 @@
+// Runos configuration file
+{
+    "services": [
+        "of-server",
+        "of-server-cli",
+        "of-server-rest",
+//        "controller",
+//        "switch-manager",
+//        "switch-manager-cli",
+//        "switch-manager-rest",
+//        "switch-ordering",
+//        "link-discovery",
+//        "link-discovery-cli",
+//        "link-discovery-rest",
+//        "recovery-manager",
+//        "recovery-manager-rest",
+//        "runtime-config-manager",
+//        "runtime-config-manager-cli",
+//        "flow-entries-verifier",
+//        "ofmsg-sender",
+//        "rtk-manager",
+//        "rtk-manager-rest",
+//        "inband",
+//        "inband-rest",
+//        "stats-rules-manager",
+//        "stats-rules-manager-rest",
+//        "storm-control",
+//        "storm-control-rest",
+//        "cisco-discovery",
+//        "cisco-discovery-rest",
+//        "topology",
+//        "topology-rest",
+//        "stats-bucket-rest",
+//        "dos-control",
+//        "dos-control-rest",
+//        "lag-balancer",
+//        "lag-balancer-rest",
+//        "mirrors",
+//        "mirrors-rest",
+//        "multicast",
+//        "multicast-rest",
+//        "ovs-lacp",
+//        "ovs-lacp-rest",
+//        "ovs-queues-rest",
+//        "qos-classifier",
+//        "qos-classifier-rest",
+//        "qos-classifier-cli",
+//        "dpid-checker",
+//        "dpid-database-sync",
+//        "database-connector",
+//        "flow-table-rest",
+//        "group-table-rest",
+//        "meter-table-rest",
+//        "aux-devices-rest",
+//        "arp-manager",
+        "snmp-agent",
+        "L2-switch"
+    ],
+
+    "runtime-config-manager" : {
+        "config_path": "runtime_config"
+    },
+
+    "dos-control": {
+      "max_packet_in_number": 1000
+    },
+    "mirrors": {
+      "pcap_path": "pcap/"
+    },
+
+    "flow-entries-verifier": {
+      "active": false,
+      "poll-interval": 30000
+    },
+
+    "dpid-checker": {
+        "dpid-format": "dec",
+        "AR": ["1", "2", "3"],
+        "DR": ["4", "5", "6"]
+    },
+
+    "qos-classifier" : {
+    "eth-pcp-mapping": {
+        "0": 1,
+        "1": 1,
+        "2": 2,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "6": 2,
+        "7": 2
+    },
+    "ip-dscp-mapping": {
+        "24": 1,
+        "25": 2
+    }
+    },
+
+    "recovery-manager": {
+        "id": 1,
+        "status": "backup",
+        "hb-mode": "broadcast",
+        "hb-address-primary": "127.0.0.1",
+        "hb-port-primary": 1234,
+        "hb-address-backup": "127.0.0.1",
+        "hb-port-backup": 1237,
+        "hb-port-broadcast": 50000,
+        "hb-address-multicast": "239.255.43.21",
+        "hb-port-multicast": 50000,
+        "hb-interval": 200,
+        "hb-primaryDeadInterval": 800,
+        "hb-backupDeadInterval": 1000,
+        "hb-primaryWaitingInterval": 600
+    },
+
+    "database-connector": {
+        "db-type": "redis",
+        "db-address": "127.0.0.1",
+        "db-port": 6379,
+        "db-pswd": ""
+    },
+
+    "link-discovery": {
+        "queue": 1,
+        "poll-interval": 5,
+        "driver_map" : {
+            "ofdpa" : 55930
+        }
+    },
+
+    "of-server": {
+        "address": "0.0.0.0",
+        "port" : 6653,
+        "nthreads": 4,
+        "echo-interval": 5,
+        "echo-attempts": 3,
+        "secure": false
+    },
+
+    "in-band": {
+        "controllers": [
+            {
+                "ip": "127.0.0.1",
+                "mac": "00:00:00:00:00:01"
+            }
+        ],
+        "vlan-id": 1022, // 0 for no vlan tag
+        "classification_hardtimeout": 90,
+        "update_classification_timeout": 60,
+        "remote-access": ["127.0.0.1"]
+    },
+
+    "rest-listener": {
+        "address": "0.0.0.0",
+        "port": "8000"
+    },
+
+    "snmp-agent": {
+        "trap-version": 3,
+        "manager-ip": "127.0.0.1",
+        "manager-port": 161,
+        "manager-trap-port": 162,
+        "trap-list": [
+            "controller",
+            "switch",
+            "port",
+            "link"
+        ],
+        "username": "runos"
+    },
+
+    "multicast": {
+        "log-level" : 1, // 0 - none, 1 - only errors, 2 - main log, 3 - debug log
+        "aggregation" : true,
+        "traffic-monitoring" : false,
+        "traffic-monitoring-interval" : 20,
+        "dynamic-groups" : true,
+        "flapping-interval" : 500, // milliseconds
+        "multicast-tree-type" : "shortest-path-tree", // "shortest-path-tree", "maxmin-tree", "steiner-tree"
+        "multicast-vlan-id": 405,
+        "multicast-main-server" : "1",
+        "auto-main-server-reconnect" : true,
+        "multicast-queue-id" : 1,
+        "general-query-policy" : "all", // "none", "manual", "all"
+        "multicast-groups": [
+            {
+                "group-name": "test-group",
+                "multicast-address": "239.255.0.1",
+                "multicast-servers": [
+                    {
+                        "switch": 1,
+                        "port": 1,
+                        "vlan-id": 405
+                    }
+                ]
+            }
+        ],
+        "user-white-list": [
+            "0.0.0.0/0",
+            "10.0.0.0/8",
+            "192.168.0.0/16",
+            "172.0.0.0/8"
+        ],
+        "group-black-list": [
+            "224.255.255.255"
+        ]
+    }
+}
+
