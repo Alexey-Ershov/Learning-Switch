@@ -13,8 +13,6 @@ REGISTER_APPLICATION(L2Switch, {"controller",
                                 "switch-manager",
                                 ""})
 
-namespace of13 = fluid_msg::of13;
-
 void L2Switch::init(Loader* loader, const Config& config)
 {
     LOG(INFO) << "L2Switch is up";
@@ -58,30 +56,23 @@ void L2Switch::init(Loader* loader, const Config& config)
         }
 
         dst_mac_ = pkt.load(ofb_eth_dst);
-        uint32_t in_port = pkt.load(ofb_in_port);
+        in_port_ = pkt.load(ofb_in_port);
         dpid_ = ofconn->dpid();
-        seen_port[dpid_][src_mac_] = in_port;
+        seen_port[dpid_][src_mac_] = in_port_;
         auto it = seen_port[dpid_].find(dst_mac_);
 
         LOG(INFO) << dpid_;
-        LOG(INFO) << in_port;
+        LOG(INFO) << in_port_;
         LOG(INFO) << src_mac_;
         LOG(INFO) << dst_mac_;
 
         if (it != seen_port[dpid_].end()) {
             LOG(INFO) << "Founded host";
-
             send_unicast(it->second);
 
         } else {
             LOG(INFO) << "Broadcast";
-            of13::PacketOut po;
-            po.data(pi.data(), pi.data_len());
-            po.in_port(in_port);
-            of13::OutputAction output_action(of13::OFPP_ALL,
-                    of13::OFPCML_NO_BUFFER);
-            po.add_action(output_action);
-            switch_manager_->switch_(dpid_)->connection()->send(po);
+            send_broadcast(pi);
         }
 
         return true;
@@ -103,7 +94,7 @@ void L2Switch::onSwitchUp(SwitchPtr sw)
     sw->connection()->send(fm);
 }
 
-void L2Switch::send_unicast(uint32_t target_port)
+void L2Switch::send_unicast(const uint32_t& target_port)
 {
     of13::FlowMod fm;
     fm.command(of13::OFPFC_ADD);
@@ -130,6 +121,17 @@ void L2Switch::send_unicast(uint32_t target_port)
     applyActions.add_action(output_action);
     fm.add_instruction(applyActions);
     switch_manager_->switch_(dpid_)->connection()->send(fm);
+}
+
+void L2Switch::send_broadcast(const of13::PacketIn& pi)
+{
+    of13::PacketOut po;
+    po.data(pi.data(), pi.data_len());
+    po.in_port(in_port_);
+    of13::OutputAction output_action(of13::OFPP_ALL,
+            of13::OFPCML_NO_BUFFER);
+    po.add_action(output_action);
+    switch_manager_->switch_(dpid_)->connection()->send(po);
 }
 
 } // namespace runos

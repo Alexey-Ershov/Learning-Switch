@@ -10,6 +10,7 @@
 namespace runos {
 
 using SwitchPtr = safe::shared_ptr<Switch>;
+namespace of13 = fluid_msg::of13;
 
 /*namespace matches {
     using eth_type = of13::EthType;
@@ -36,8 +37,10 @@ private:
     ethaddr src_mac_;
     ethaddr dst_mac_;
     uint64_t dpid_;
+    uint32_t in_port_;
 
-    void send_unicast(uint32_t target_port);
+    void send_unicast(const uint32_t& target_port);
+    void send_broadcast(const of13::PacketIn& pi);
 };
 
 } // namespace runos
