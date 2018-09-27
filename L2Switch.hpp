@@ -3,7 +3,9 @@
 #include "Application.hpp"
 #include "Loader.hpp"
 #include "Controller.hpp"
+#include "SwitchManager.hpp"
 #include "api/SwitchFwd.hpp"
+#include "oxm/openflow_basic.hh"
 
 namespace runos {
 
@@ -29,6 +31,13 @@ protected slots:
 
 private:
     OFMessageHandlerPtr handler_;
+
+    SwitchManager* switch_manager_;
+    ethaddr src_mac_;
+    ethaddr dst_mac_;
+    uint64_t dpid_;
+
+    void send_unicast(uint32_t target_port);
 };
 
 } // namespace runos
