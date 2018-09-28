@@ -6,6 +6,10 @@
 #include "SwitchManager.hpp"
 #include "api/SwitchFwd.hpp"
 #include "oxm/openflow_basic.hh"
+#include "lib/switch_and_port.hpp"
+
+#include <boost/optional.hpp>
+#include <boost/thread.hpp>
 
 namespace runos {
 
@@ -39,8 +43,19 @@ private:
     uint64_t dpid_;
     uint32_t in_port_;
 
-    void send_unicast(const uint32_t& target_port, const of13::PacketIn& pi);
+    void send_unicast(const uint32_t& target_switch_and_port, const of13::PacketIn& pi);
     void send_broadcast(const of13::PacketIn& pi);
+};
+
+class HostsDatabase
+{
+public:
+    bool set_switch_and_port(uint64_t dpid, uint32_t in_port, ethaddr mac);
+    boost::optional<switch_and_port> get_switch_and_port(ethaddr mac);
+
+private:
+    boost::shared_mutex mutex;
+    std::unordered_map<ethaddr, switch_and_port> seen_ports;
 };
 
 } // namespace runos

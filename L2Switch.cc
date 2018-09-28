@@ -1,6 +1,7 @@
 #include "L2Switch.hpp"
 
 #include "PacketParser.hpp"
+#include "Topology.hpp"
 #include "api/Packet.hpp"
 #include <runos/core/logging.hpp>
 
@@ -11,6 +12,7 @@ namespace runos {
 
 REGISTER_APPLICATION(L2Switch, {"controller",
                                 "switch-manager",
+                                "topology",
                                 ""})
 
 void L2Switch::init(Loader* loader, const Config& config)
@@ -25,9 +27,6 @@ void L2Switch::init(Loader* loader, const Config& config)
     const auto ofb_eth_src = oxm::eth_src();
     const auto ofb_eth_dst = oxm::eth_dst();
 
-    std::unordered_map<uint64_t,
-            std::unordered_map<ethaddr, uint32_t>> seen_port;
-
     /*seen_port[1][ethaddr("00:00:00:00:00:01")] = 1;
     seen_port[1][ethaddr("00:00:00:00:00:02")] = 2;
     seen_port[2][ethaddr("00:00:00:00:00:03")] = 1;
@@ -40,6 +39,9 @@ void L2Switch::init(Loader* loader, const Config& config)
         }
     }*/
 
+    auto topology = Topology::get(loader);
+    auto data_base = std::make_shared<HostsDatabase>();
+
     handler_ = Controller::get(loader)->register_handler(
     [=](of13::PacketIn& pi, OFConnectionPtr ofconn) mutable -> bool
     {
@@ -49,26 +51,35 @@ void L2Switch::init(Loader* loader, const Config& config)
         runos::Packet& pkt(pp);
 
         src_mac_ = pkt.load(ofb_eth_src);
-
-        if (is_broadcast(src_mac_)) {
-            DLOG(WARNING) << "Broadcast source address, dropping";
-            return false;
-        }
-
         dst_mac_ = pkt.load(ofb_eth_dst);
         in_port_ = pkt.load(ofb_in_port);
         dpid_ = ofconn->dpid();
-        seen_port[dpid_][src_mac_] = in_port_;
-        auto it = seen_port[dpid_].find(dst_mac_);
+        
+        data_base->set_switch_and_port(dpid_,
+                                       in_port_,
+                                       src_mac_);
+        auto source = data_base->get_switch_and_port(src_mac_);
+        auto target = data_base->get_switch_and_port(dst_mac_);
 
         DLOG(INFO) << dpid_;
         DLOG(INFO) << in_port_;
         DLOG(INFO) << src_mac_;
         DLOG(INFO) << dst_mac_;
 
-        if (it != seen_port[dpid_].end()) {
-            DLOG(INFO) << "Founded host";
-            send_unicast(it->second, pi);
+        if (target) {
+            auto route = topology
+                    ->computeRoute(source->dpid, target->dpid);
+
+            if (not route.empty() or source->dpid == target->dpid) {
+                DLOG(INFO) << "Founded host";
+                send_unicast(route[0].port, pi);
+            
+            } else {
+                LOG(WARNING) << "Path from " << source->dpid
+                             << " to " << target->dpid
+                             << " not found";
+                return false;
+            }
 
         } else {
             DLOG(INFO) << "Broadcast";
@@ -147,6 +158,34 @@ void L2Switch::send_broadcast(const of13::PacketIn& pi)
             of13::OFPCML_NO_BUFFER);
     po.add_action(output_action);
     switch_manager_->switch_(dpid_)->connection()->send(po);
+}
+
+bool HostsDatabase::set_switch_and_port(uint64_t dpid,
+                                        uint32_t in_port,
+                                        ethaddr mac)
+{
+    if (is_broadcast(mac)) {
+        LOG(WARNING) << "Broadcast source address, dropping";
+        return false;
+    }
+
+    boost::unique_lock<boost::shared_mutex> lock(mutex);
+    db.emplace(mac, switch_and_port{dpid, in_port});
+    return true;
+}
+
+boost::optional<switch_and_port> HostsDatabase::get_switch_and_port(
+        ethaddr mac)
+{
+    boost::shared_lock<boost::shared_mutex> lock(mutex);
+    auto it = db.find(mac);
+    
+    if (it != db.end()) {
+        return it->second;
+    
+    } else {
+        return boost::none;
+    }
 }
 
 } // namespace runos
