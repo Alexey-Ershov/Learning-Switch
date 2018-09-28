@@ -15,7 +15,7 @@ REGISTER_APPLICATION(L2Switch, {"controller",
 
 void L2Switch::init(Loader* loader, const Config& config)
 {
-    LOG(INFO) << "L2Switch is up";
+    DLOG(INFO) << "L2Switch is up";
 
     switch_manager_ = SwitchManager::get(loader);
     connect(switch_manager_, &SwitchManager::switchUp,
@@ -33,9 +33,9 @@ void L2Switch::init(Loader* loader, const Config& config)
     seen_port[2][ethaddr("00:00:00:00:00:03")] = 1;
     seen_port[3][ethaddr("00:00:00:00:00:04")] = 1;
     for (auto& map: seen_port) {
-        LOG(INFO) << "dpid_: " << map.first;
+        DLOG(INFO) << "dpid_: " << map.first;
         for (auto& it: map.second) {
-            LOG(INFO) << "mac: " << it.first << std::endl
+            DLOG(INFO) << "mac: " << it.first << std::endl
                       << "port: " << it.second;
         }
     }*/
@@ -43,7 +43,7 @@ void L2Switch::init(Loader* loader, const Config& config)
     handler_ = Controller::get(loader)->register_handler(
     [=](of13::PacketIn& pi, OFConnectionPtr ofconn) mutable -> bool
     {
-        LOG(INFO) << "Catch PacketIn";
+        DLOG(INFO) << "Catch PacketIn";
 
         PacketParser pp(pi);
         runos::Packet& pkt(pp);
@@ -61,17 +61,17 @@ void L2Switch::init(Loader* loader, const Config& config)
         seen_port[dpid_][src_mac_] = in_port_;
         auto it = seen_port[dpid_].find(dst_mac_);
 
-        LOG(INFO) << dpid_;
-        LOG(INFO) << in_port_;
-        LOG(INFO) << src_mac_;
-        LOG(INFO) << dst_mac_;
+        DLOG(INFO) << dpid_;
+        DLOG(INFO) << in_port_;
+        DLOG(INFO) << src_mac_;
+        DLOG(INFO) << dst_mac_;
 
         if (it != seen_port[dpid_].end()) {
-            LOG(INFO) << "Founded host";
-            send_unicast(it->second);
+            DLOG(INFO) << "Founded host";
+            send_unicast(it->second, pi);
 
         } else {
-            LOG(INFO) << "Broadcast";
+            DLOG(INFO) << "Broadcast";
             send_broadcast(pi);
         }
 
@@ -81,7 +81,7 @@ void L2Switch::init(Loader* loader, const Config& config)
 
 void L2Switch::onSwitchUp(SwitchPtr sw)
 {
-    LOG(INFO) << "Switch Up!";
+    DLOG(INFO) << "Switch Up!";
 
     of13::FlowMod fm;
     fm.command(of13::OFPFC_ADD);
@@ -94,8 +94,21 @@ void L2Switch::onSwitchUp(SwitchPtr sw)
     sw->connection()->send(fm);
 }
 
-void L2Switch::send_unicast(const uint32_t& target_port)
+void L2Switch::send_unicast(const uint32_t& target_port, const of13::PacketIn& pi)
 {
+    { // Send PacketOut.
+
+    of13::PacketOut po;
+    po.data(pi.data(), pi.data_len());
+    of13::OutputAction output_action(target_port,
+            of13::OFPCML_NO_BUFFER);
+    po.add_action(output_action);
+    switch_manager_->switch_(dpid_)->connection()->send(po);
+
+    } // Send PacketOut.
+
+    { // Create FlowMod.
+
     of13::FlowMod fm;
     fm.command(of13::OFPFC_ADD);
     fm.table_id(0);
@@ -121,6 +134,8 @@ void L2Switch::send_unicast(const uint32_t& target_port)
     applyActions.add_action(output_action);
     fm.add_instruction(applyActions);
     switch_manager_->switch_(dpid_)->connection()->send(fm);
+
+    } // Create FlowMod.
 }
 
 void L2Switch::send_broadcast(const of13::PacketIn& pi)

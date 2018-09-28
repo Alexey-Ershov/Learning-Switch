@@ -39,7 +39,7 @@ private:
     uint64_t dpid_;
     uint32_t in_port_;
 
-    void send_unicast(const uint32_t& target_port);
+    void send_unicast(const uint32_t& target_port, const of13::PacketIn& pi);
     void send_broadcast(const of13::PacketIn& pi);
 };
 
